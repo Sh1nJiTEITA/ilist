@@ -20,24 +20,30 @@ var (
 	ErrCantInsertUser       = errors.New("cant insert user")
 )
 
+var (
+	IsCheckDBCreationPath = false
+)
+
 func DBPath() string {
 	abs, _ := filepath.Abs("./tasks.db")
 	return abs
 }
 
 func createDB(path string) (*sql.DB, error) {
-	if filepath.Ext(path) == "" {
-		return nil, ErrCantCreateDBIsDir
-	}
-	if _, err := os.Stat(path); err != nil {
-		file, err := os.Create(path)
-		if err != nil {
-			return nil, ErrCantCreateDB
+	if IsCheckDBCreationPath {
+		if filepath.Ext(path) == "" {
+			return nil, ErrCantCreateDBIsDir
 		}
-		file.Close()
-		log.Infof("Database created at path %v", path)
-	} else {
-		log.Infof("Database exists at %v", path)
+		if _, err := os.Stat(path); err != nil {
+			file, err := os.Create(path)
+			if err != nil {
+				return nil, ErrCantCreateDB
+			}
+			file.Close()
+			log.Infof("Database created at path %v", path)
+		} else {
+			log.Infof("Database exists at %v", path)
+		}
 	}
 	connection, err := sql.Open("sqlite3", path)
 	if err != nil {
@@ -122,7 +128,7 @@ func (d *Database) IsExistsUser(username string, password string) (bool, error) 
 }
 
 func (d *Database) DeleteUser(username string, password string) error {
-	promt := `DELETE FROM users WHERE (username, password) VALUES (?, ?)`
+	promt := `DELETE FROM users WHERE username = ? AND password = ?`
 	stmt, err := d.db.Prepare(promt)
 	if err != nil {
 		return ErrCantPrepareUser
