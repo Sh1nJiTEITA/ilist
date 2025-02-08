@@ -16,8 +16,10 @@ var (
 	ErrCantCreateDB         = errors.New("cant create DB")
 	ErrCantCreateDBIsDir    = errors.New("cant create DB input path points not to *.db file")
 	ErrCantCreateUsersTable = errors.New("cant create users table")
+	ErrCantCreateTasksTable = errors.New("cant create tasks table")
 	ErrCantPrepareUser      = errors.New("cant prepair insert user promt")
 	ErrCantInsertUser       = errors.New("cant insert user")
+	ErrCantUpdateUser       = errors.New("cant update user, user with input id does not exist")
 )
 
 var (
@@ -72,11 +74,23 @@ func (t User) String() string {
 	return fmt.Sprintf("User(Id: %v, Username: %s)", t.Id, t.Username)
 }
 
+type Task struct {
+	Id      int64
+	UserId  int64
+	Content string
+	Status  bool
+	Level   int64
+}
+
+func (t Task) String() string {
+	return fmt.Sprintf(`Task{Id: %v, UserId: %v, Status: %v, Content: %v}`, t.Id, t.UserId, t.Status, t.Content)
+}
+
 type Database struct {
 	db *sql.DB
 }
 
-func (d *Database) AddUsersTable() error {
+func (d *Database) AddUserTable() error {
 	promt := `
 	CREATE TABLE IF NOT EXISTS users (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,6 +103,57 @@ func (d *Database) AddUsersTable() error {
 	}
 	log.Println("Users table was created")
 	return nil
+}
+
+func (d *Database) AddTaskTable() error {
+	promt := `
+	CREATE TABLE IF NOT EXISTS tasks (
+		id	INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER NOT NULL,
+		content TEXT NOT NULL,
+		status  INTEGER NOT NULL,
+		level   INTEGER NOT NULL,
+		
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+	);`
+	_, err := d.db.Exec(promt)
+	if err != nil {
+		return ErrCantCreateTasksTable
+	}
+	log.Println("Tasks table was created")
+	return nil
+}
+
+func (d *Database) AddTask(user User, content string, status bool, level int64) (*Task, error) {
+	promt := `
+	INSERT INTO tasks (user_id, content, status, level) 
+	VALUES (?, ?, ?, ?)
+	`
+	result, err := d.db.Exec(promt, user.Id, content, status, level)
+	if err != nil {
+		return nil, err
+	}
+	id, err := result.LastInsertId()
+
+	if err != nil {
+		return nil, err
+	}
+	out_task := Task{
+		Id:      id,
+		UserId:  user.Id,
+		Content: content,
+		Status:  status,
+		Level:   level,
+	}
+
+	log.Printf("%v added\n", out_task)
+	return &out_task, nil
+}
+
+func (d *Database) IsExistsTask(id int64, unit_id int64) bool {
+	promt := `SELECT * FROM tasks WHERE id = ? AND unit_id = ?`
+	row := d.db.QueryRow(promt, id, unit_id)
+	return row != nil
 }
 
 func (d *Database) AddUser(username string, password string) (*User, error) {
@@ -108,6 +173,35 @@ func (d *Database) AddUser(username string, password string) (*User, error) {
 		return nil, err
 	}
 	log.Printf("User '%v' with id '%v' added\n", username, id)
+	return &User{id, username, password}, nil
+}
+
+func (d *Database) UpdateUser(id int64, username string, password string) (*User, error) {
+	promt := `UPDATE users SET username = ?, password = ? WHERE id = ?`
+	stmt, err := d.db.Prepare(promt)
+	if err != nil {
+		return nil, ErrCantPrepareUser
+	}
+	defer stmt.Close()
+
+	old_user, err := d.GetUserById(id)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := stmt.Exec(username, password, id)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if rows == 0 {
+		return nil, ErrCantUpdateUser
+	}
+
+	log.Printf("User updated: %v ===> %v", old_user, User{id, username, password})
 	return &User{id, username, password}, nil
 }
 
@@ -158,5 +252,23 @@ func (d *Database) GetUserByName(username string) (*User, error) {
 		return nil, err
 	}
 	log.Printf("User '%v' was found by name\n", found)
+	return &found, nil
+}
+
+func (d *Database) GetUserById(id int64) (*User, error) {
+	promt := `SELECT * FROM users WHERE id = ?`
+	stmt, err := d.db.Prepare(promt)
+	if err != nil {
+		return nil, ErrCantPrepareUser
+	}
+	defer stmt.Close()
+
+	var found User
+
+	err = stmt.QueryRow(id).Scan(&found.Id, &found.Username, &found.password)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("User '%v' was found by id\n", found)
 	return &found, nil
 }
