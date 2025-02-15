@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
+	// "github.com/Sh1nJiTEITA/ilist/utils"
+	ut "github.com/Sh1nJiTEITA/ilist/utils"
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
 )
@@ -56,22 +58,9 @@ func createDB(path string) (*sql.DB, error) {
 }
 
 func CreateDB(path string) (*Database, error) {
-	conn, err := createDB(path)
-	if err != nil {
-		return nil, err
-	}
+	conn := ut.Must(createDB(path))
 	db := Database{conn}
 	return &db, nil
-}
-
-type User struct {
-	Id       int64
-	Username string
-	password string
-}
-
-func (t User) String() string {
-	return fmt.Sprintf("User(Id: %v, Username: %s)", t.Id, t.Username)
 }
 
 type Task struct {
@@ -124,7 +113,7 @@ func (d *Database) AddTaskTable() error {
 	return nil
 }
 
-func (d *Database) AddTask(user User, content string, status bool, level int64) (*Task, error) {
+func (d *Database) AddTask(user *User, content string, status bool, level int64) (*Task, error) {
 	promt := `
 	INSERT INTO tasks (user_id, content, status, level) 
 	VALUES (?, ?, ?, ?)
@@ -272,3 +261,23 @@ func (d *Database) GetUserById(id int64) (*User, error) {
 	log.Printf("User '%v' was found by id\n", found)
 	return &found, nil
 }
+
+func (d *Database) GetTasksByUserId(user_id int64) ([]Task, error) {
+	promt := `SELECT * FROM tasks WHERE user_id = ?`
+	rows, err := d.db.Query(promt, user_id)
+	if err != nil {
+		return nil, err
+	}
+	var tasks []Task
+	for rows.Next() {
+		var t Task
+		if err := rows.Scan(&t.Id, &t.UserId, &t.Content, &t.Status, &t.Level); err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, t)
+	}
+	log.Infof("Searching tasks by user_id... Have been found %v tasks", len(tasks))
+	return tasks, nil
+}
+
+// === === === === === === === === === === === === === === === === === === ===

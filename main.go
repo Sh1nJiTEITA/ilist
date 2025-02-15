@@ -2,10 +2,13 @@ package main
 
 import (
 	// "fmt"
+	"fmt"
+	"os"
+
 	"github.com/Sh1nJiTEITA/ilist/ilistlib"
+	"github.com/Sh1nJiTEITA/ilist/interaction"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
-	"os"
 )
 
 func SetupLogger() {
@@ -34,8 +37,12 @@ func main() {
 
 	db, err := ilistlib.CreateDB(ilistlib.DBPath())
 	checkErr(err)
-	checkErr(db.AddUsersTable())
-	db.AddUser("snj", "123")
+	checkErr(db.AddUserTable())
+	checkErr(db.AddTaskTable())
+
+	// user, err := db.AddUser("snj", "123")
+	// checkErr(err)
+
 	status, err := db.IsExistsUser("snj", "123")
 	checkErr(err)
 	println(status)
@@ -43,10 +50,17 @@ func main() {
 	checkErr(err)
 	println(status)
 
-	_, err = db.GetUserByName("snj")
+	user, err := db.GetUserByName("snj")
 	checkErr(err)
 
-	_, err = db.GetUserByName("snj2")
+	_, err = db.AddTask(user, "do something by snj", false, 0)
+
+	cli, err := interaction.CreateCLIManager(db)
 	checkErr(err)
+
+	msg, err := cli.GetTasksByUserStr(user.Id)
+	checkErr(err)
+
+	fmt.Print(msg)
 
 }

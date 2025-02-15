@@ -129,7 +129,7 @@ func Test_AddTask(t *testing.T) {
 	checkErr(err, t)
 	user, err := db.AddUser("some", "123")
 	checkErr(err, t)
-	task, err := db.AddTask(*user, "SOME_CONTENT", false, 0)
+	task, err := db.AddTask(user, "SOME_CONTENT", false, 0)
 	checkErr(err, t)
 
 	if task.Id != 1 || task.UserId != user.Id || task.Content != "SOME_CONTENT" || task.Status != false || task.Level != 0 {
@@ -140,5 +140,29 @@ func Test_AddTask(t *testing.T) {
 			 %v !=? false
 			 %v !=? 0
 			 `, task.Id, task.UserId, user.Id, task.Content, task.Status, task.Level)
+	}
+}
+
+func Test_GetTasks(t *testing.T) {
+	db, err := CreateDB(":memory:")
+	checkErr(err, t)
+	err = db.AddTaskTable()
+	err = db.AddUserTable()
+	checkErr(err, t)
+	user, err := db.AddUser("some", "123")
+	checkErr(err, t)
+	task_1, err := db.AddTask(user, "SOME_CONTENT_1", false, 0)
+	checkErr(err, t)
+	task_2, err := db.AddTask(user, "SOME_CONTENT_2", true, 0)
+	checkErr(err, t)
+	tasks, err := db.GetTasksByUserId(user.Id)
+	checkErr(err, t)
+
+	if tasks[0] != *task_1 || tasks[1] != *task_2 {
+		t.Fatalf(`Tasks are different! 
+			 (needed : got):
+			 %v : %v,
+			 %v : %v
+			`, task_1, tasks[0], task_2, tasks[1])
 	}
 }
