@@ -94,12 +94,13 @@ func (t *TableUsers) FindByName(username string) (*User, error) {
 		&user.Username,
 		&user.Password,
 	)
-	if user.Username != username {
-		panic("strange behaviour")
-	}
 	if err != nil {
 		return nil, UserTableError_NoUserFound
 	}
+	if user.Username != username {
+		panic("strange behaviour")
+	}
+
 	return &user, nil
 }
 
@@ -166,4 +167,8 @@ func (t *TableUsers) SprintAll() string {
 		users_str[i] = fmt.Sprint(user)
 	}
 	return strings.Join(users_str, "\n")
+}
+
+func (t *TableUsers) Keyword() []string {
+	return []string{"--users", "-u"}
 }
