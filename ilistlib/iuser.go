@@ -4,6 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	mod_int "github.com/Sh1nJiTEITA/ilist/interaction"
+	mod_uti "github.com/Sh1nJiTEITA/ilist/utils"
+	// log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -157,7 +161,7 @@ func (t *TableUsers) GetAll() ([]*User, error) {
 	return users, nil
 }
 
-func (t *TableUsers) SprintAll() string {
+func (t *TableUsers) GetAllStr() string {
 	users, err := t.GetAll()
 	if err == UserTableError_NoUserFound {
 		return ""
@@ -169,6 +173,53 @@ func (t *TableUsers) SprintAll() string {
 	return strings.Join(users_str, "\n")
 }
 
-func (t *TableUsers) Keyword() []string {
-	return []string{"--users", "-u"}
+// func (t *TableUsers)
+
+func (t *TableUsers) Arguments() mod_int.CliSnippet {
+	return mod_int.CliSnippet{
+		"--show": func(words []string) {
+			if len(words) == 0 {
+				return
+			}
+			if mod_uti.IsIn(words[0], "--all", "-a") {
+				if len(words) > 1 {
+					fmt.Print("Underfined arguments after --all")
+				} else {
+					fmt.Print(t.GetAllStr())
+				}
+
+			} else if mod_uti.IsIn(words[0], "--username", "-u") {
+				user, err := t.FindByName(words[1])
+
+				if err == UserTableError_NoUserFound {
+					fmt.Printf("Cant find user with name '%s'", words[1])
+				} else if err != nil {
+					fmt.Printf("Unhandled error inside '--username': %w", err)
+				} else {
+					fmt.Print(user)
+				}
+			}
+		},
+		"--add": func(words []string) {
+			if len(words) == 0 {
+				fmt.Print("Other arguments are not specified")
+				return
+			}
+			if mod_uti.IsIn(words[0], "--username", "-u") {
+				if len(words) >= 4 || mod_uti.IsIn(words[2], "--password", "-p") {
+					fmt.Print(words[1], words[3])
+				} else {
+					fmt.Print("Users can be added without password, specify '--password' keyword first")
+				}
+
+			} else {
+				fmt.Print("Only users can be added this way, specify '--username' keyword first")
+				return
+			}
+		},
+	}
+}
+
+func (t *TableUsers) SpecialKeyword() string {
+	return "--users"
 }

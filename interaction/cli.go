@@ -1,29 +1,44 @@
 package interaction
 
 import (
-	"fmt"
-	// log "github.com/sirupsen/logrus"
-	"os"
+	// "fmt"
+	log "github.com/sirupsen/logrus"
+	"strings"
+	// "os"
 )
 
-type CliTable interface {
-	Keyword() []string
-	SprintAll() string
+type CliSnippet map[string]func([]string)
+
+type CliTableCommand interface {
+	SpecialKeyword() string
+	Arguments() CliSnippet
 }
 
-func ParseInputArguments(cli_tables []CliTable) {
-	table_map := make(map[string]CliTable)
+type TestCommand struct{}
 
-	for _, table := range cli_tables {
-		for _, key := range table.Keyword() {
-			// log.Infof("Found available keyword: %v", key)
-			table_map[key] = table
-		}
+func (c TestCommand) Arguments() CliSnippet {
+	return CliSnippet{
+		"-h": func(words []string) {
+			log.Info(strings.Join(words, " "))
+		},
 	}
+}
 
-	for _, arg := range os.Args[1:] {
-		if table, exists := table_map[arg]; exists {
-			fmt.Print(table.SprintAll())
+func (c TestCommand) SpecialKeyword() string {
+	return "--test"
+}
+
+func ParseInputArguments(cli_tables []CliTableCommand, args []string) {
+	for _, cli_table := range cli_tables {
+		special := cli_table.SpecialKeyword()
+		if args[1] != special {
+			continue
+		}
+		cmds := cli_table.Arguments()
+		for i := 0; i < len(args); i++ {
+			if cmd, exists := cmds[args[i]]; exists {
+				cmd(args[i+1:])
+			}
 		}
 	}
 }

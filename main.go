@@ -41,9 +41,10 @@ func main() {
 		}
 	}
 
-	tables := []mod_int.CliTable{
+	tables := []mod_int.CliTableCommand{
 		users,
+		mod_int.TestCommand{},
 	}
 
-	mod_int.ParseInputArguments(tables)
+	mod_int.ParseInputArguments(tables, os.Args)
 }
